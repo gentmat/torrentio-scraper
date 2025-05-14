@@ -19,21 +19,43 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
-# Ask for GitHub authentication if needed
-read -p "Do you need to authenticate with GitHub Container Registry? (y/n): " need_auth
-if [[ "$need_auth" == "y" || "$need_auth" == "Y" ]]; then
-    read -p "Enter your GitHub username: " github_user
-    read -sp "Enter your GitHub token: " github_token
-    echo
-    
-    echo "Logging in to GitHub Container Registry..."
-    echo "$github_token" | docker login ghcr.io -u "$github_user" --password-stdin
-    if [ $? -ne 0 ]; then
-        echo "Failed to authenticate with GitHub Container Registry."
-        echo "Please check your credentials and try again."
-        exit 1
-    fi
+# Check if git is installed
+if ! command -v git &> /dev/null; then
+    echo "Git is not installed. Please install Git first."
+    echo "Visit https://git-scm.com/downloads for installation instructions."
+    exit 1
 fi
+
+# Create a temp directory for cloning and building
+echo "Creating temporary build directory..."
+BUILD_DIR=$(mktemp -d)
+cd "$BUILD_DIR"
+
+# Clone the repository
+echo "Cloning torrentio-scraper repository..."
+git clone https://github.com/gentmat/torrentio-scraper.git
+if [ $? -ne 0 ]; then
+    echo "Failed to clone repository."
+    exit 1
+fi
+
+# Build the Docker image
+echo "Building torrentio-scraper Docker image..."
+cd torrentio-scraper
+docker build -t local/torrentio-scraper:latest -f addon/Dockerfile addon/
+if [ $? -ne 0 ]; then
+    echo "Failed to build Docker image."
+    exit 1
+fi
+
+# Return to original directory
+cd "$OLDPWD"
+
+# Clean up temp directory
+rm -rf "$BUILD_DIR"
+
+# Update docker-compose.yml to use local image
+sed -i 's|ghcr.io/gentmat/torrentio-scraper:latest|local/torrentio-scraper:latest|g' docker-compose.yml
 
 echo "Starting services..."
 docker compose up -d
