@@ -19,6 +19,22 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
+# Ask for GitHub authentication if needed
+read -p "Do you need to authenticate with GitHub Container Registry? (y/n): " need_auth
+if [[ "$need_auth" == "y" || "$need_auth" == "Y" ]]; then
+    read -p "Enter your GitHub username: " github_user
+    read -sp "Enter your GitHub token: " github_token
+    echo
+    
+    echo "Logging in to GitHub Container Registry..."
+    echo "$github_token" | docker login ghcr.io -u "$github_user" --password-stdin
+    if [ $? -ne 0 ]; then
+        echo "Failed to authenticate with GitHub Container Registry."
+        echo "Please check your credentials and try again."
+        exit 1
+    fi
+fi
+
 echo "Starting services..."
 docker compose up -d
 

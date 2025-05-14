@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   torrentio:
-    image: thebeastlt/torrentio:latest
+    image: ghcr.io/gentmat/torrentio-scraper:latest
     container_name: torrentio-scraper
     restart: unless-stopped
     ports:
