@@ -3,13 +3,14 @@ import { Type } from './types.js';
 import { mapLanguages } from './languages.js';
 import { enrichStreamSources, getSources } from './magnetHelper.js';
 import { getSubtitles } from './subtitles.js';
+import { proxyStreamUrl, isProxyConfigured } from './proxyHelper.js';
 
 const ADDON_NAME = 'Torrentio';
 const SIZE_DELTA = 0.05;
 const UNKNOWN_SIZE = 300000000;
 const CAM_SOURCES = ['CAM', 'TeleSync', 'TeleCine', 'SCR'];
 
-export function toStreamInfo(record) {
+export function toStreamInfo(record, config = {}) {
   const torrentInfo = titleParser.parse(record.torrent.title);
   const fileInfo = titleParser.parse(record.title);
   const sameInfo = !Number.isInteger(record.fileIndex)
@@ -32,9 +33,14 @@ export function toStreamInfo(record) {
       '',
       '\n'
   );
+  
+  // Add proxy indicator to title if proxy is enabled
+  const proxyEnabled = isProxyConfigured(config);
+  const namePrefix = proxyEnabled ? ADDON_NAME + ' (Proxied)' : ADDON_NAME;
+  
   const name = joinDetailParts(
       [
-        joinDetailParts([ADDON_NAME]),
+        joinDetailParts([namePrefix]),
         joinDetailParts([quality, three3Quality, joinDetailParts(hdrProfiles, '', ' | ')])
       ],
       '',
@@ -45,7 +51,7 @@ export function toStreamInfo(record) {
   const filename = Number.isInteger(record.fileIndex) ? record.title.split('/').pop() : undefined;
   const behaviorHints = bingeGroup || filename ? cleanOutputObject({ bingeGroup, filename }) : undefined;
 
-  return cleanOutputObject({
+  const streamInfo = cleanOutputObject({
     name: name,
     title: title,
     infoHash: record.infoHash,
@@ -54,6 +60,9 @@ export function toStreamInfo(record) {
     sources: getSources(record.torrent.trackers, record.infoHash),
     subtitles: getSubtitles(record)
   });
+  
+  // Return regular stream info if proxy is not configured
+  return streamInfo;
 }
 
 function getQuality(record, torrentInfo, fileInfo) {
@@ -107,12 +116,19 @@ function formatSize(size) {
   return Number((size / Math.pow(1024, i)).toFixed(2)) + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
 }
 
-export function applyStaticInfo(streams) {
-  return streams.map(stream => enrichStaticInfo(stream));
+export function applyStaticInfo(streams, config = {}) {
+  return streams.map(stream => enrichStaticInfo(stream, config));
 }
 
-function enrichStaticInfo(stream) {
-  return enrichSubtitles(enrichStreamSources({ ...stream }));
+function enrichStaticInfo(stream, config = {}) {
+  const enrichedStream = enrichSubtitles(enrichStreamSources({ ...stream }));
+  
+  // Apply proxy if configured
+  if (isProxyConfigured(config) && enrichedStream.url) {
+    enrichedStream.url = proxyStreamUrl(enrichedStream.url, config);
+  }
+  
+  return enrichedStream;
 }
 
 function enrichSubtitles(stream) {

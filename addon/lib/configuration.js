@@ -2,6 +2,25 @@ import { DebridOptions } from '../moch/options.js';
 import { QualityFilter, Providers, SizeFilter } from './filter.js';
 import { LanguageOptions } from './languages.js';
 
+// Add proxy configuration options
+export const ProxyOptions = {
+  key: 'proxy',
+  options: [
+    {
+      key: 'enabled',
+      label: 'Enable MediaFlow Proxy Light'
+    },
+    {
+      key: 'url',
+      label: 'MediaFlow Proxy Light URL'
+    },
+    {
+      key: 'apipassword',
+      label: 'MediaFlow Proxy Light API Password'
+    }
+  ]
+};
+
 export const PreConfigurations = {
   lite: {
     config: liteConfig(),
@@ -48,6 +67,21 @@ export function parseConfiguration(configuration) {
       .filter(key => configValues[key])
       .forEach(key => configValues[key] = configValues[key].split(',')
           .map(value => keysToUppercase.includes(key) ? value.toUpperCase() : value.toLowerCase()))
+  
+  // Process proxy config options
+  if (configValues[ProxyOptions.key]) {
+    const proxyConfig = {};
+    configValues[ProxyOptions.key].forEach(option => {
+      const [key, value] = option.split(':');
+      if (key && value) {
+        proxyConfig[key] = value;
+      }
+    });
+    configValues.proxyEnabled = proxyConfig.enabled === 'true';
+    configValues.proxyUrl = proxyConfig.url;
+    configValues.proxyApiPassword = proxyConfig.apipassword;
+  }
+  
   return configValues;
 }
 

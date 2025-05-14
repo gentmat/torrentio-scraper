@@ -189,7 +189,7 @@ import { SortOptions } from './sort.js';
 import { LanguageOptions } from './languages.js';
 import { DebridOptions } from '../moch/options.js';
 import { MochOptions } from '../moch/moch.js';
-import { PreConfigurations } from './configuration.js';
+import { PreConfigurations, ProxyOptions } from './configuration.js';
 
 export default function landingTemplate(manifest, config = {}) {
   const providers = config[Providers.key] || Providers.options.map(provider => provider.key);
@@ -198,6 +198,9 @@ export default function landingTemplate(manifest, config = {}) {
   const qualityFilters = config[QualityFilter.key] || [];
   const sizeFilter = (config[SizeFilter.key] || []).join(',');
   const limit = config.limit || '';
+  const proxyEnabled = config.proxyEnabled || false;
+  const proxyUrl = config.proxyUrl || '';
+  const proxyApiPassword = config.proxyApiPassword || '';
 
   const debridProvider = Object.keys(MochOptions).find(mochKey => config[mochKey]);
   const debridOptions = config[DebridOptions.key] || [];
@@ -356,6 +359,24 @@ export default function landingTemplate(manifest, config = {}) {
          </div>
          
          <div class="separator"></div>
+         
+         <div id="dMediaFlowProxy">
+           <h3>MediaFlow Proxy Light Integration</h3>
+           <div class="form-check">
+             <input type="checkbox" class="form-check-input" id="iProxyEnabled" onchange="proxyEnabledChange()" ${proxyEnabled ? 'checked' : ''}>
+             <label class="form-check-label" for="iProxyEnabled">Enable MediaFlow Proxy Light</label>
+           </div>
+           
+           <div id="dProxyConfig" style="${proxyEnabled ? '' : 'display: none;'}">
+             <label class="label" for="iProxyUrl">MediaFlow Proxy Light URL:</label>
+             <input type="text" id="iProxyUrl" onchange="generateInstallLink()" class="input" value="${proxyUrl}" placeholder="http://your-server:8888">
+             
+             <label class="label" for="iProxyApiPassword">MediaFlow Proxy Light API Password:</label>
+             <input type="password" id="iProxyApiPassword" onchange="generateInstallLink()" class="input" value="${proxyApiPassword}">
+           </div>
+         </div>
+         
+         <div class="separator"></div>
 
          <a id="installLink" class="install-link" href="#">
             <button name="Install" class="install-button">INSTALL</button>
@@ -441,6 +462,12 @@ export default function landingTemplate(manifest, config = {}) {
             $('#dPutio').toggle(provider === '${MochOptions.putio.key}');
           }
           
+          function proxyEnabledChange() {
+            const enabled = $('#iProxyEnabled').is(':checked');
+            $('#dProxyConfig').toggle(enabled);
+            generateInstallLink();
+          }
+          
           function generateInstallLink() {
               const providersList = $('#iProviders').val() || [];
               const providersValue = providersList.join(',');
@@ -461,6 +488,10 @@ export default function landingTemplate(manifest, config = {}) {
               const putioClientIdValue = $('#iPutioClientId').val() || '';
               const putioTokenValue = $('#iPutioToken').val() || '';
               
+              // Proxy configuration
+              const proxyEnabled = $('#iProxyEnabled').is(':checked');
+              const proxyUrl = $('#iProxyUrl').val() || '';
+              const proxyApiPassword = $('#iProxyApiPassword').val() || '';
               
               const providers = providersList.length && providersList.length < ${Providers.options.length} && providersValue;
               const qualityFilters = qualityFilterValue.length && qualityFilterValue;
@@ -478,6 +509,13 @@ export default function landingTemplate(manifest, config = {}) {
               const offcloud = offcloudValue.length && offcloudValue.trim();
               const torbox = torboxValue.length && torboxValue.trim();
               const putio = putioClientIdValue.length && putioTokenValue.length && putioClientIdValue.trim() + '@' + putioTokenValue.trim();
+              
+              // Handle proxy configuration
+              const proxy = proxyEnabled && proxyUrl.length ? [
+                'enabled:true',
+                'url:' + proxyUrl.trim(),
+                proxyApiPassword.length ? 'apipassword:' + proxyApiPassword.trim() : null
+              ].filter(Boolean).join(',') : '';
 
               const preConfigurations = { 
                 ${preConfigurationObject}
@@ -497,7 +535,8 @@ export default function landingTemplate(manifest, config = {}) {
                     ['${MochOptions.easydebrid.key}', easyDebrid],
                     ['${MochOptions.offcloud.key}', offcloud],
                     ['${MochOptions.torbox.key}', torbox],
-                    ['${MochOptions.putio.key}', putio]
+                    ['${MochOptions.putio.key}', putio],
+                    ['${ProxyOptions.key}', proxy]
                   ].filter(([_, value]) => value.length).map(([key, value]) => key + '=' + value).join('|');
               configurationValue = Object.entries(preConfigurations)
                   .filter(([key, value]) => value === configurationValue)

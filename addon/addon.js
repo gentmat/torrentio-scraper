@@ -29,7 +29,7 @@ builder.defineStreamHandler((args) => {
   return requestQueue.wrap(args.id, () => resolveStreams(args))
       .then(streams => applyFilters(streams, args.extra))
       .then(streams => applySorting(streams, args.extra, args.type))
-      .then(streams => applyStaticInfo(streams))
+      .then(streams => applyStaticInfo(streams, args.extra))
       .then(streams => applyMochs(streams, args.extra))
       .then(streams => enrichCacheParams(streams))
       .catch(error => {
@@ -67,7 +67,7 @@ async function resolveStreams(args) {
   return cacheWrapStream(args.id, () => newLimiter(() => streamHandler(args)
       .then(records => records
           .sort((a, b) => b.torrent.seeders - a.torrent.seeders || b.torrent.uploadDate - a.torrent.uploadDate)
-          .map(record => toStreamInfo(record)))));
+          .map(record => toStreamInfo(record, args.extra)))));
 }
 
 async function streamHandler(args) {

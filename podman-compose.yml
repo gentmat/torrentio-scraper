@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  torrentio:
+    image: docker.io/thebeastlt/torrentio:latest
+    container_name: torrentio-scraper
+    restart: unless-stopped
+    ports:
+      - "7000:7000"
+    environment:
+      - PORT=7000
+      - DATABASE_URI=postgres://postgres:postgres@db:5432/torrentio
+      - CACHE_MAX_AGE=3600
+      - METRICS_USER=admin
+      - METRICS_PASSWORD=admin
+    depends_on:
+      - db
+    networks:
+      - torrentio-network
+
+  mediaflow-proxy:
+    image: docker.io/mhdzumair/mediaflow-proxy-light:latest
+    container_name: mediaflow-proxy-light
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      - APP__SERVER__HOST=0.0.0.0
+      - APP__SERVER__PORT=8888
+      - APP__AUTH__API_PASSWORD=mib2003
+    networks:
+      - torrentio-network
+
+  db:
+    image: docker.io/postgres:14-alpine
+    container_name: torrentio-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=torrentio
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+    networks:
+      - torrentio-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  torrentio-network:
+    external: true 
